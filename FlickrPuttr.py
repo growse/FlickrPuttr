@@ -33,25 +33,43 @@ class FlickrPuttr:
                     log.debug("Filename: %s, FileExtension: %s"%(fileName,fileExtension))
                     if fileExtension.lower() in ['.jpg','.png','.mov','.wmv','.bmp','.avi','.3gp']:
                         log.info("seeing if this photo already exists")
-                        existing = self.flickr.photos_search(user_id='me',tags="blasdifjalsdif",text=fileName,tag_mode='all')
-                        ElementTree.dump(existing)
-                        os._exit(0)
-                        log.info("Uploading %s"%thisfile)
-                        photoid=-1
-                        if not dryrun:
-                            photo = self.flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr %s"%setname,is_public=0,is_family=1,is_friend=0,callback=self.upload_callback)
-                            photoid = photo.findtext("photoid")
-                            log.debug("Upload method returned with %s"%photoid)
-                        if first:
-                            first=False
-                            log.info("Creating set %s"%setname)
+                        photo_exists = False
+                        existing = self.flickr.photos_search(user_id='me',tags="blasdifjalsdif",text=fileName,tag_mode='all').find('photos')
+                        log.debug("Existing: %s"%ElementTree.tostring(existing))
+                        existing_count = existing.attrib.get('total')
+                        if existing_count!="":
+                            log.debug("%s existing found"%existing_count)
+                            for photo in existing.findall('photo'):
+                                photoid=photo.attrib.get('id')
+                                log.debug("Getting tags for photo id: %s"%photoid)
+                                photo_info = self.flickr.photos_getInfo(photo_id=photoid)
+                                log.debug("Photo Info: %s"%ElementTree.tostring(photo_info))
+                                tags = photo_info.findall('photo/tags/tag')
+                                log.debug("%s tags found"%len(tags))
+                                for tag in tags:
+                                    log.debug("Tag: %s"%tag.attrib.get('raw'))
+                                    if tag.attrib.get('raw')=='FlickrPuttr':
+                                        photo_exists=True
+                                
+                        if not photo_exists:
+                            log.info("Uploading %s"%thisfile)
+                            photoid=-1
                             if not dryrun:
-                                photoset = self.flickr.photosets_create(title=setname,primary_photo_id=photoid)
-                                setid = photoset.find('photoset').attrib.get('id')
+                                photo = self.flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr %s"%setname,is_public=0,is_family=1,is_friend=0,callback=self.upload_callback)
+                                photoid = photo.findtext("photoid")
+                                log.debug("Upload method returned with %s"%photoid)
+                            if first:
+                                first=False
+                                log.info("Creating set %s"%setname)
+                                if not dryrun:
+                                    photoset = self.flickr.photosets_create(title=setname,primary_photo_id=photoid)
+                                    setid = photoset.find('photoset').attrib.get('id')
+                            else:
+                                log.debug("Adding photo %s to set %s"%(photoid,setid))
+                                if not dryrun:
+                                    self.flickr.photosets_addPhoto(photoset_id=setid,photo_id=photoid)
                         else:
-                            log.debug("Adding photo %s to set %s"%(photoid,setid))
-                            if not dryrun:
-                                self.flickr.photosets_addPhoto(photoset_id=setid,photo_id=photoid)
+                            log.warn("Photo exists. Skipping")
                     else:
                         log.warn("%s not supported"%thisfile)
     
