@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
 import logging
-import sys,os,traceback,argparse
-import time
-import re
+import os,argparse
 import flickrapi
 from threading import Lock
+from xml.etree import ElementTree
 
 FLICKR_API_KEY="0f1a333f06103708c067d450321c0bfc"
 FLICKR_API_SECRET="77b240d1ab6e7302"
@@ -22,7 +21,8 @@ def main(directory):
 	for root,dirs,files in os.walk(directory):
 		if not root == directory:
 			log.debug("Root: %s"%root)
-			setname = root.split(os.path.dirname(root))[1]
+			setname = root.split(os.path.dirname(root))[1].lstrip('/')
+			setid=0
 			first=True
 					
 			for thisfile in files:
@@ -30,12 +30,18 @@ def main(directory):
 				log.debug("Filename: %s, FileExtension: %s"%(fileName,fileExtension))
 				if fileExtension in ['.jpg','.png']:
 					log.info("Uploading %s"%thisfile)
-					ret = flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr",is_public=0,is_family=1,is_friend=0,callback=upload_callback)
-					log.debug("Upload method returned with %s"%ret)
+					photo = flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr",is_public=0,is_family=1,is_friend=0,callback=upload_callback)
+					photoid = photo.findtext("photoid")
+					log.debug("Upload method returned with %s"%photoid)
 					if first:
 						first=False
 						log.info("Creating set %s"%setname)
-						#flickr.photosets
+						photoset = flickr.photosets_create(title=setname,primary_photo_id=photoid)
+						setid = photoset.find('photoset').attrib.get('id')
+						ElementTree.dump(photoset)
+					else:
+						log.debug("Adding photo %s to set %s"%(photoid,setid))
+						flickr.photosets_addPhoto(photoset_id=setid,photo_id=photoid)
 				else:
 					log.warn("%s not supported"%thisfile)
 
