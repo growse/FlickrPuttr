@@ -2,7 +2,7 @@
 
 import time
 import logging
-import os,argparse
+import os, argparse
 import flickrapi
 import json
 from threading import Lock
@@ -11,13 +11,13 @@ from httplib import BadStatusLine
 
 class FlickrPuttr:
     def __init__(self):
-        self.FLICKR_API_KEY="0f1a333f06103708c067d450321c0bfc"
-        self.FLICKR_API_SECRET="77b240d1ab6e7302"
+        self.flickrApiKey = "0f1a333f06103708c067d450321c0bfc"
+        self.flickrApiSecret = "77b240d1ab6e7302"
         self.log = logging.getLogger('FlickrPuttr')
-        self.tokenfile=".flickrtoken"
-        self.pathsdb='puttr.db'
-        pass
-    def main(self,directory,dryrun,followlinks):
+        self.tokenfile = ".flickrtoken"
+        self.pathsdb = 'puttr.db'
+
+    def main(self, directory, dryrun, followlinks):
         log.info("Entering main")
         if not os.path.exists(directory):
             raise IOError("Directory %s not found"%directory)
@@ -30,29 +30,29 @@ class FlickrPuttr:
         self.loadSeen()
 
         log.info("Walking directory")
-        for root,dirs,files in os.walk(directory,followlinks=followlinks):
+        for root, dirs, files in os.walk(directory,followlinks=followlinks):
             if not root == directory:
                 log.debug("Root: %s"%root)
                 setname = root.split(os.path.dirname(root))[1].lstrip('/')
-                setid=0
-                first=True
+                setid = 0
+                first = True
                         
                 for thisfile in files:
                     if root+'/'+thisfile in self.paths:
                         log.info("Already seen this path: %s"%thisfile)
                         break
                     fileName, fileExtension = os.path.splitext(thisfile)
-                    log.info("Filename: %s, FileExtension: %s"%(fileName,fileExtension))
-                    if fileExtension.lower() in ['.jpg','.png','.mov','.wmv','.bmp','.avi','.3gp']:
+                    log.info("Filename: %s, FileExtension: %s"%(fileName, fileExtension))
+                    if fileExtension.lower() in ['.jpg', '.png', '.mov', '.wmv', '.bmp', '.avi', '.3gp']:
                         log.info("seeing if this photo already exists")
                         photo_exists = False
-                        existing = self.flickr.photos_search(user_id='me',tags="blasdifjalsdif",text=fileName,tag_mode='all').find('photos')
+                        existing = self.flickr.photos_search(user_id='me', tags="blasdifjalsdif", text=fileName, tag_mode='all').find('photos')
                         log.debug("Existing: %s"%ElementTree.tostring(existing))
                         existing_count = existing.attrib.get('total')
-                        if existing_count!="":
+                        if existing_count != "":
                             log.debug("%s existing found"%existing_count)
                             for photo in existing.findall('photo'):
-                                photoid=photo.attrib.get('id')
+                                photoid = photo.attrib.get('id')
                                 log.debug("Getting tags for photo id: %s"%photoid)
                                 photo_info = self.flickr.photos_getInfo(photo_id=photoid)
                                 log.debug("Photo Info: %s"%ElementTree.tostring(photo_info))
@@ -60,14 +60,14 @@ class FlickrPuttr:
                                 log.debug("%s tags found"%len(tags))
                                 for tag in tags:
                                     log.debug("Tag: %s"%tag.attrib.get('raw'))
-                                    if tag.attrib.get('raw')=='FlickrPuttr':
-                                        photo_exists=True
+                                    if tag.attrib.get('raw') == 'FlickrPuttr':
+                                        photo_exists = True
                                 
                         if not photo_exists:
                             log.info("Uploading %s"%thisfile)
-                            photoid=-1
+                            photoid = -1
                             if not dryrun:
-                                upload_complete=False
+                                upload_complete = False
                                 while not upload_complete:
                                     try:
                                         photo = self.flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr %s"%setname,is_public=0,is_family=1,is_friend=0,callback=self.upload_callback)
@@ -101,7 +101,7 @@ class FlickrPuttr:
                                             log.exception(e)
                                             log.error("Waiting a bit to try again")
                                             attempts-=1
-                                            if attemps==0:
+                                            if attempts==0:
                                                 raise e
                                             else:
                                                 time.sleep(5)
@@ -146,14 +146,14 @@ class FlickrPuttr:
         token = self.getFlickrToken()
         if token != None:
             log.info("Token pulled from cache")
-            self.flickr = flickrapi.FlickrAPI(self.FLICKR_API_KEY,self.FLICKR_API_SECRET,store_token=False,token=token)
+            self.flickr = flickrapi.FlickrAPI(self.flickrApiKey,self.flickrApiSecret,store_token=False,token=token)
             try:
                 self.flickr.auth_checkToken()
                 return
             except flickrapi.FlickrError:
                 log.error("Cached token not valid")
                 token = None
-        self.flickr = flickrapi.FlickrAPI(self.FLICKR_API_KEY,self.FLICKR_API_SECRET,store_token=False)
+        self.flickr = flickrapi.FlickrAPI(self.flickrApiKey,self.flickrApiSecret,store_token=False)
         log.debug("Getting flickr token")
         (token, frob) = self.flickr.get_token_part_one(perms='write',auth_callback=self.flickrAuth)
         
