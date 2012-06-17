@@ -209,8 +209,8 @@ if __name__=='__main__':
         #Parse the command line arguments
         parser = argparse.ArgumentParser(description="Uploads photos to Flickr and creates sets based on directory names")
         parser.add_argument("directory", help="Directory containing photos to upload")
-        parser.add_argument("--dry-run", default=False, action="store_true", dest="dryrun", help="Do a dry run, don't actually upload")
-        parser.add_argument("--follow-links", default=False, action="store_true", dest="followlinks", help="Follow links in target directory")
+        parser.add_argument("-x","--dry-run", default=False, action="store_true", dest="dryrun", help="Do a dry run, don't actually upload")
+        parser.add_argument("-L","--follow-links", default=False, action="store_true", dest="followlinks", help="Follow links in target directory")
         args = parser.parse_args()
         log.debug("Args: %s"%args)
         
