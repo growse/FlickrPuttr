@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""FlickrPuttr, a simple little script for dumping lots of images into sets on Flickr.
+
+Copyright (c) 2012 Andrew Rowson. Licensed under the BSD two-clause license. See LICENSE.md for details."""
 
 import time
 import logging
