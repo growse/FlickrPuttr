@@ -35,7 +35,7 @@ class FlickrPuttr:
         log.info("Walking directory")
         for root, dirs, files in os.walk(directory,followlinks=followlinks):
             if not root == directory:
-                log.debug("Root: %s"%root)
+                log.info("In directory: %s"%root)
                 setname = root.split(os.path.dirname(root))[1].lstrip('/')
                 setid = 0
                 first = True
@@ -43,79 +43,79 @@ class FlickrPuttr:
                 for thisfile in files:
                     if root+'/'+thisfile in self.paths:
                         log.info("Already seen this path: %s"%thisfile)
-                        break
-                    fileName, fileExtension = os.path.splitext(thisfile)
-                    log.info("Filename: %s, FileExtension: %s"%(fileName, fileExtension))
-                    if fileExtension.lower() in ['.jpg', '.png', '.mov', '.wmv', '.bmp', '.avi', '.3gp']:
-                        log.info("seeing if this photo already exists")
-                        photo_exists = False
-                        existing = self.flickr.photos_search(user_id='me', tags="blasdifjalsdif", text=fileName, tag_mode='all').find('photos')
-                        log.debug("Existing: %s"%ElementTree.tostring(existing))
-                        existing_count = existing.attrib.get('total')
-                        if existing_count != "":
-                            log.debug("%s existing found"%existing_count)
-                            for photo in existing.findall('photo'):
-                                photoid = photo.attrib.get('id')
-                                log.debug("Getting tags for photo id: %s"%photoid)
-                                photo_info = self.flickr.photos_getInfo(photo_id=photoid)
-                                log.debug("Photo Info: %s"%ElementTree.tostring(photo_info))
-                                tags = photo_info.findall('photo/tags/tag')
-                                log.debug("%s tags found"%len(tags))
-                                for tag in tags:
-                                    log.debug("Tag: %s"%tag.attrib.get('raw'))
-                                    if tag.attrib.get('raw') == 'FlickrPuttr':
-                                        photo_exists = True
-                                
-                        if not photo_exists:
-                            log.info("Uploading %s"%thisfile)
-                            photoid = -1
-                            if not dryrun:
-                                upload_complete = False
-                                while not upload_complete:
-                                    try:
-                                        photo = self.flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr %s"%setname,is_public=0,is_family=1,is_friend=0,callback=self.upload_callback)
-                                        log.info("Upload completed")
-                                        upload_complete=True
-                                    except BadStatusLine, e:
-                                        log.exception(e)
-                                        log.error("Sleeping for 10 seconds due to error uploading")
-                                        time.sleep(10)
-                                photoid = photo.findtext("photoid")
-                                log.debug("Upload method returned with %s"%photoid)
-                            if first:
-                                first=False
-                                if not setname in self.sets:
-                                    log.info("Creating set %s"%setname)
-                                    if not dryrun:
-                                        photoset = self.flickr.photosets_create(title=setname,primary_photo_id=photoid)
-                                        setid = photoset.find('photoset').attrib.get('id')
-                                else:
-                                    log.info("%s already exists, so adding to that"%setname)
-                                    setid = self.sets[setname]
-                            else:
-                                log.debug("Adding photo %s to set %s"%(photoid,setid))
-                                if not dryrun:
-                                    attempts=5
-                                    while attempts>0:
-                                        try:
-                                            self.flickr.photosets_addPhoto(photoset_id=setid,photo_id=photoid)
-                                            attempts=0
-                                        except flickrapi.FlickrError,e:
-                                            log.exception(e)
-                                            log.error("Waiting a bit to try again")
-                                            attempts-=1
-                                            if attempts==0:
-                                                raise e
-                                            else:
-                                                time.sleep(5)
-                        else:
-                            log.warn("Photo exists. Skipping")
                     else:
-                        log.warn("%s not supported"%thisfile)
-                    log.info("Appending path to seen paths")
-                    self.paths.append(root+'/'+thisfile)
-                    log.info("Now seen %s paths total"%len(self.paths))
-                    self.saveSeen()
+                        fileName, fileExtension = os.path.splitext(thisfile)
+                        log.info("Filename: %s, FileExtension: %s"%(fileName, fileExtension))
+                        if fileExtension.lower() in ['.jpg', '.png', '.mov', '.wmv', '.bmp', '.avi', '.3gp']:
+                            log.info("seeing if this photo already exists")
+                            photo_exists = False
+                            existing = self.flickr.photos_search(user_id='me', tags="blasdifjalsdif", text=fileName, tag_mode='all').find('photos')
+                            log.debug("Existing: %s"%ElementTree.tostring(existing))
+                            existing_count = existing.attrib.get('total')
+                            if existing_count != "":
+                                log.debug("%s existing found"%existing_count)
+                                for photo in existing.findall('photo'):
+                                    photoid = photo.attrib.get('id')
+                                    log.debug("Getting tags for photo id: %s"%photoid)
+                                    photo_info = self.flickr.photos_getInfo(photo_id=photoid)
+                                    log.debug("Photo Info: %s"%ElementTree.tostring(photo_info))
+                                    tags = photo_info.findall('photo/tags/tag')
+                                    log.debug("%s tags found"%len(tags))
+                                    for tag in tags:
+                                        log.debug("Tag: %s"%tag.attrib.get('raw'))
+                                        if tag.attrib.get('raw') == 'FlickrPuttr':
+                                            photo_exists = True
+                                    
+                            if not photo_exists:
+                                log.info("Uploading %s"%thisfile)
+                                photoid = -1
+                                if not dryrun:
+                                    upload_complete = False
+                                    while not upload_complete:
+                                        try:
+                                            photo = self.flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr %s"%setname,is_public=0,is_family=1,is_friend=0,callback=self.upload_callback)
+                                            log.info("Upload completed")
+                                            upload_complete=True
+                                        except BadStatusLine, e:
+                                            log.exception(e)
+                                            log.error("Sleeping for 10 seconds due to error uploading")
+                                            time.sleep(10)
+                                    photoid = photo.findtext("photoid")
+                                    log.debug("Upload method returned with %s"%photoid)
+                                if first:
+                                    first=False
+                                    if not setname in self.sets:
+                                        log.info("Creating set %s"%setname)
+                                        if not dryrun:
+                                            photoset = self.flickr.photosets_create(title=setname,primary_photo_id=photoid)
+                                            setid = photoset.find('photoset').attrib.get('id')
+                                    else:
+                                        log.info("%s already exists, so adding to that"%setname)
+                                        setid = self.sets[setname]
+                                else:
+                                    log.debug("Adding photo %s to set %s"%(photoid,setid))
+                                    if not dryrun:
+                                        attempts=5
+                                        while attempts>0:
+                                            try:
+                                                self.flickr.photosets_addPhoto(photoset_id=setid,photo_id=photoid)
+                                                attempts=0
+                                            except flickrapi.FlickrError,e:
+                                                log.exception(e)
+                                                log.error("Waiting a bit to try again")
+                                                attempts-=1
+                                                if attempts==0:
+                                                    raise e
+                                                else:
+                                                    time.sleep(5)
+                            else:
+                                log.warn("Photo exists. Skipping")
+                        else:
+                            log.warn("%s not supported"%thisfile)
+                        log.info("Appending path to seen paths")
+                        self.paths.append(root+'/'+thisfile)
+                        log.info("Now seen %s paths total"%len(self.paths))
+                        self.saveSeen()
    
     def loadSeen(self):
         if not os.path.exists(self.pathsdb):
