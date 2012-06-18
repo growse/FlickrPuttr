@@ -20,6 +20,19 @@ class FlickrPuttr:
         self.tokenfile = ".flickrtoken"
         self.pathsdb = 'puttr.db'
 
+    def ordersets(self):
+        log.info("Entering ordersets")
+        log.info("Get Flickr Client")
+        self.getFlickrClient()
+        log.info("Getting existing photosets")
+        self.populatePhotosets()
+        setids=[]
+        for key,value in sorted(self.sets.iteritems(),reverse=True):
+            setids.append(value)
+        log.info("Setting new set order")
+        self.flickr.photosets_orderSets(photoset_ids=','.join(setids))
+        log.info("Done")
+
     def main(self, directory, dryrun, followlinks):
         log.info("Entering main")
         if not os.path.exists(directory):
@@ -31,7 +44,7 @@ class FlickrPuttr:
         
         log.info("Loading paths already examined")
         self.loadSeen()
-
+        filecount=0
         log.info("Walking directory")
         for root, dirs, files in os.walk(directory,followlinks=followlinks):
             if not root == directory:
@@ -41,6 +54,7 @@ class FlickrPuttr:
                 first = True
                         
                 for thisfile in files:
+                    filecount+=1
                     if root+'/'+thisfile in self.paths:
                         log.info("Already seen this path: %s"%thisfile)
                     else:
@@ -49,7 +63,7 @@ class FlickrPuttr:
                         if fileExtension.lower() in ['.jpg', '.png', '.mov', '.wmv', '.bmp', '.avi', '.3gp']:
                             log.info("seeing if this photo already exists")
                             photo_exists = False
-                            existing = self.flickr.photos_search(user_id='me', tags="blasdifjalsdif", text=fileName, tag_mode='all').find('photos')
+                            existing = self.flickr.photos_search(user_id='me', tags="FlickrPuttr", text=fileName, tag_mode='all').find('photos')
                             log.debug("Existing: %s"%ElementTree.tostring(existing))
                             existing_count = existing.attrib.get('total')
                             if existing_count != "":
@@ -73,7 +87,7 @@ class FlickrPuttr:
                                     upload_complete = False
                                     while not upload_complete:
                                         try:
-                                            photo = self.flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr %s"%setname,is_public=0,is_family=1,is_friend=0,callback=self.upload_callback)
+                                            photo = self.flickr.upload(filename=root+'/'+thisfile,title=fileName,tags="FlickrPuttr",is_public=0,is_family=1,is_friend=0,callback=self.upload_callback)
                                             log.info("Upload completed")
                                             upload_complete=True
                                         except BadStatusLine, e:
@@ -116,7 +130,7 @@ class FlickrPuttr:
                         self.paths.append(root+'/'+thisfile)
                         log.info("Now seen %s paths total"%len(self.paths))
                         self.saveSeen()
-   
+        log.info("Complete. %s photos processed"%filecount)
     def loadSeen(self):
         if not os.path.exists(self.pathsdb):
             self.paths=[]
@@ -214,17 +228,20 @@ if __name__=='__main__':
         parser.add_argument("directory", help="Directory containing photos to upload")
         parser.add_argument("-x","--dry-run", default=False, action="store_true", dest="dryrun", help="Do a dry run, don't actually upload")
         parser.add_argument("-L","--follow-links", default=False, action="store_true", dest="followlinks", help="Follow links in target directory")
+        parser.add_argument("-O","--order-sets", default=False, action="store_true", dest="ordersets", help="Just order the sets alphabetically")
         args = parser.parse_args()
         log.debug("Args: %s"%args)
         
         #Time to actually do something
         puttr = FlickrPuttr()
-        puttr.main(args.directory,args.dryrun,args.followlinks)
+        if args.ordersets:
+            puttr.ordersets()
+        else:
+            puttr.main(args.directory,args.dryrun,args.followlinks)
     except KeyboardInterrupt, e:
         raise e
     except SystemExit, e:
         raise e
     except Exception, e:
-        puttr.saveSeen()
         logging.exception(e)
         os._exit(1)
