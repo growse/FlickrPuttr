@@ -19,6 +19,7 @@ class FlickrPuttr:
         self.log = logging.getLogger('FlickrPuttr')
         self.tokenfile = ".flickrtoken"
         self.pathsdb = 'puttr.db'
+        self.path=[]
 
     def ordersets(self):
         log.info("Entering ordersets")
@@ -71,7 +72,20 @@ class FlickrPuttr:
                                 for photo in existing.findall('photo'):
                                     photoid = photo.attrib.get('id')
                                     log.debug("Getting tags for photo id: %s"%photoid)
-                                    photo_info = self.flickr.photos_getInfo(photo_id = photoid)
+                                    attempts = 5
+                                    while attempts>0:
+                                        try:
+                                            photo_info = self.flickr.photos_getInfo(photo_id = photoid)
+                                            attempts = 0
+                                        except BadStatusLine, e:
+                                            log.exception(e)
+                                            log.error("Sleeping for 10 seconds due to error getting photo info")
+                                            attempts -= 1
+                                            if attempts == 0:
+                                                raise e
+                                            else:
+                                                time.sleep(10)
+                                        
                                     log.debug("Photo Info: %s"%ElementTree.tostring(photo_info))
                                     tags = photo_info.findall('photo/tags/tag')
                                     log.debug("%s tags found"%len(tags))
