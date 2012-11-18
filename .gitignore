@@ -30,4 +30,4 @@ pip-log.txt
 *.log
 
 .flickrtoken
-puttr.db
+*.db
