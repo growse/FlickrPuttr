@@ -32,9 +32,16 @@ class FlickrGettr:
         self.populatePhotosets()
         self.loadSeen()
         log.info("{} cached urls loaded".format(len(self.flickrUrlCache)))
+        log.info("Going to look at {} sets".format(len(self.sets)))
         for photoset in self.sets:
-            log.info("Set: %s" % photoset)
-            photos = self.flickr.photosets_getPhotos(photoset_id=self.sets[photoset])
+            log.info("Photoset: {}".format(photoset))
+            counter = 5
+            while counter > 0:
+                try:
+                    photos = self.flickr.photosets_getPhotos(photoset_id=self.sets[photoset])
+                    counter = 0
+                except IOError:
+                    counter -= 1
             for photo in photos.findall('photoset/photo'):
                 photoid = photo.attrib.get('id')
                 filename = directory + '/' + self.createFilename(photoset, photo.attrib.get('title'))
@@ -47,20 +54,31 @@ class FlickrGettr:
                 if photoid not in self.flickrUrlCache:
                     farmid = photo.attrib.get('farm')
                     serverid = photo.attrib.get('server')
-                    photoinfo = self.flickr.photos_getInfo(photo_id=photoid).find('photo')
+                    counter = 5
+                    while counter > 0:
+                        try:
+                            photoinfo = self.flickr.photos_getInfo(photo_id=photoid).find('photo')
+                            counter = 0
+                        except IOError:
+                            counter -= 1
+
                     secret = photoinfo.attrib.get('originalsecret')
                     extension = photoinfo.attrib.get('originalformat')
                     url = "http://farm{farmid}.staticflickr.com/{serverid}/{id}_{osecret}_o.{format}".format(farmid=farmid, serverid=serverid, id=photoid, osecret=secret, format=extension)
-                    self.photosToDownload[photoid] = filename
                     self.flickrUrlCache[photoid] = url
                     self.saveSeen()
                 else:
                     url = self.flickrUrlCache[photoid]
+                self.photosToDownload[photoid] = filename
                 log.info("Photo: %s is %s" % (filename, url))
 
         log.info("Complete. %s photos to download" % len(self.photosToDownload))
         for photoid in self.photosToDownload:
             log.info("Downloading {}".format(self.flickrUrlCache[photoid]))
+            filename = self.photosToDownload[photoid]
+            directory = os.path.dirname(filename)
+            if not os.path.exists(directory):
+                    os.makedirs(directory)
             urllib.urlretrieve(self.flickrUrlCache[photoid], self.photosToDownload[photoid])
 
     def createFilename(self, photoset, title):
