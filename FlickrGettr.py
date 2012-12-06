@@ -7,8 +7,32 @@ import logging
 import os
 import argparse
 import flickrapi
-import urllib
 import json
+
+
+def curl_progress(total, existing, upload_t, upload_d):
+    try:
+        frac = float(existing) / float(total)
+    except:
+        frac = 0
+    print "Downloaded %d/%d (%0.2f%%)" % (existing, total, frac)
+
+
+def curl_limit_rate(url, filename, rate_limit):
+    """Rate limit in bytes"""
+    import pycurl
+    c = pycurl.Curl()
+    c.setopt(c.URL, url)
+    c.setopt(c.MAX_RECV_SPEED_LARGE, rate_limit)
+    if os.path.exists(filename):
+        file_id = open(filename, "ab")
+        c.setopt(c.RESUME_FROM, os.path.getsize(filename))
+    else:
+        file_id = open(filename, "wb")
+    c.setopt(c.WRITEDATA, file_id)
+    c.setopt(c.NOPROGRESS, 0)
+    c.setopt(c.PROGRESSFUNCTION, curl_progress)
+    c.perform()
 
 
 class FlickrGettr:
@@ -78,8 +102,8 @@ class FlickrGettr:
             filename = self.photosToDownload[photoid]
             directory = os.path.dirname(filename)
             if not os.path.exists(directory):
-                    os.makedirs(directory)
-            urllib.urlretrieve(self.flickrUrlCache[photoid], self.photosToDownload[photoid])
+                os.makedirs(directory)
+            curl_limit_rate(str(self.flickrUrlCache[photoid]), self.photosToDownload[photoid], 50000)
 
     def createFilename(self, photoset, title):
         if title.endswith('.jpg'):
@@ -148,6 +172,7 @@ class FlickrGettr:
         f = open(self.pathsdb, 'w')
         json.dump(self.flickrUrlCache, f)
         f.close()
+
 
 if __name__ == '__main__':
     try:
